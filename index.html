@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kuis & Game Interaktif Psikotes YMMA</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Visualization & Content Choices: 
+        1. Tes Verbal (Sinonim, Antonim, Analogi) -> Goal: Assess & Practice -> Viz: Kuis Pilihan Ganda (HTML/JS) -> Interaction: Pilih jawaban, dapatkan feedback -> Justification: Format standar untuk tes bahasa.
+        2. Tes Numerik (Aritmatika, Deret Angka) -> Goal: Assess & Practice -> Viz: Kuis Isian Singkat & Pilihan Ganda (HTML/JS) -> Interaction: Input jawaban/pilih, dapatkan feedback -> Justification: Menguji kecepatan dan ketepatan hitung.
+        3. Tes Logika (Silogisme) -> Goal: Assess & Practice -> Viz: Kuis Pilihan Ganda (HTML/JS) -> Interaction: Pilih jawaban, dapatkan feedback -> Justification: Cocok untuk soal penalaran deduktif.
+        4. Tes Spasial (Hitung Kubus, Pola) -> Goal: Assess & Practice -> Viz: Kuis Visual Pilihan Ganda (HTML/CSS untuk representasi kubus/pola sederhana, JS untuk logika) -> Interaction: Pilih jawaban visual -> Justification: Simulasi sederhana tes spasial tanpa SVG.
+        5. Tes Ketahanan Kerja (Kraepelin-like) -> Goal: Simulate & Practice -> Viz: Game sederhana penjumlahan cepat (HTML/JS), grafik konseptual performa (Chart.js) -> Interaction: Input jawaban cepat, lihat skor/feedback -> Justification: Gamifikasi untuk melatih konsentrasi.
+        6. Tes Menggambar (Wartegg, DAP, Baum) -> Goal: Inform & Guide (bukan kuis) -> Viz: Tampilan interaktif stimulus (Wartegg), contoh gambar dengan tips (HTML/JS) -> Interaction: Klik untuk info/tips -> Justification: Mengedukasi tentang tes proyektif secara interaktif.
+        Semua pilihan mendukung struktur aplikasi yang berpusat pada latihan interaktif dan menghindari SVG/Mermaid. -->
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; /* bg-slate-50 */ }
+        .nav-button { transition: all 0.3s ease; }
+        .nav-button.active { background-color: #0891b2; /* bg-cyan-600 */ color: white; }
+        .quiz-option:hover { background-color: #f1f5f9; /* bg-slate-100 */ }
+        .feedback-correct { color: #16a34a; /* text-green-600 */ font-weight: bold; }
+        .feedback-incorrect { color: #dc2626; /* text-red-600 */ font-weight: bold; }
+        .game-area { min-height: 300px; }
+        .chart-container-kraepelin { position: relative; width: 100%; max-width: 500px; margin-left: auto; margin-right: auto; height: 250px; max-height: 300px; }
+        .wartegg-box { width: 80px; height: 80px; border: 1px solid #94a3b8; display: flex; justify-content: center; align-items: center; cursor: pointer; background-color: white; }
+        .wartegg-box:hover { background-color: #e0f2fe; }
+        .stimulus-dot { width: 8px; height: 8px; background-color: black; border-radius: 50%; }
+        .stimulus-wave { font-size: 24px; font-family: serif; }
+        .stimulus-lines { display: flex; flex-direction: column; justify-content: flex-start; align-items: flex-start; height: 100%; padding: 8px;}
+        .stimulus-lines div { width: 20px; height: 3px; background-color: black; margin-bottom: 4px; }
+        .stimulus-black-box { width: 12px; height: 12px; background-color: black; margin: 8px; align-self: flex-start; margin-left: auto;}
+        .stimulus-t { font-size: 24px; font-weight: lighter; }
+        .stimulus-crosshairs { position: relative; width: 30px; height: 30px; }
+        .stimulus-crosshairs::before { content: ''; position: absolute; top: 50%; left: 0; width: 100%; height: 2px; background-color: black; transform: translateY(-50%); }
+        .stimulus-crosshairs::after { content: ''; position: absolute; left: 50%; top: 0; width: 2px; height: 100%; background-color: black; transform: translateX(-50%); }
+        .stimulus-dots-arc { display: flex; padding: 8px; }
+        .stimulus-dots-arc .dot { width: 4px; height: 4px; background-color: black; border-radius: 50%; margin-right: 2px; }
+        .stimulus-arc { width: 40px; height: 40px; border-top: 4px solid black; border-radius: 50%; align-self: flex-end; margin: 8px; }
+    </style>
+</head>
+<body class="text-slate-800">
+
+    <div class="min-h-screen flex flex-col">
+        <header class="bg-cyan-700 text-white p-4 shadow-md">
+            <div class="container mx-auto flex justify-between items-center">
+                <h1 class="text-2xl font-bold">Kuis & Game Psikotes YMMA</h1>
+            </div>
+        </header>
+
+        <div class="flex-grow container mx-auto p-4 md:p-6 flex flex-col md:flex-row gap-6">
+            <aside class="w-full md:w-1/4">
+                <nav class="bg-white p-4 rounded-lg shadow-sm">
+                    <h2 class="text-lg font-semibold text-cyan-800 mb-3">Pilih Kategori Tes:</h2>
+                    <ul class="space-y-2">
+                        <li><button class="nav-button w-full text-left px-4 py-2 rounded-md hover:bg-cyan-50 active" data-target="beranda-kuis">🏠 Beranda Kuis</button></li>
+                        <li><button class="nav-button w-full text-left px-4 py-2 rounded-md hover:bg-cyan-50" data-target="kuis-verbal">📝 Tes Verbal</button></li>
+                        <li><button class="nav-button w-full text-left px-4 py-2 rounded-md hover:bg-cyan-50" data-target="kuis-numerik">🔢 Tes Numerik</button></li>
+                        <li><button class="nav-button w-full text-left px-4 py-2 rounded-md hover:bg-cyan-50" data-target="kuis-logika">🧠 Tes Logika</button></li>
+                        <li><button class="nav-button w-full text-left px-4 py-2 rounded-md hover:bg-cyan-50" data-target="kuis-spasial">🧊 Tes Spasial</button></li>
+                        <li><button class="nav-button w-full text-left px-4 py-2 rounded-md hover:bg-cyan-50" data-target="game-ketahanan">📰 Game Ketahanan Kerja</button></li>
+                        <li><button class="nav-button w-full text-left px-4 py-2 rounded-md hover:bg-cyan-50" data-target="interaktif-menggambar">🎨 Interaktif Menggambar</button></li>
+                    </ul>
+                </nav>
+            </aside>
+
+            <main id="content-area" class="w-full md:w-3/4 bg-white p-6 rounded-lg shadow-sm">
+                </main>
+        </div>
+    </div>
+
+    <script>
+        const navButtons = document.querySelectorAll('.nav-button');
+        const contentArea = document.getElementById('content-area');
+        let currentQuizData = null;
+        let currentQuestionIndex = 0;
+        let score = 0;
+        let kraepelinGameInterval = null;
+        let kraepelinTimeLeft = 0;
+        let kraepelinCorrectAnswers = 0;
+        let kraepelinTotalAnswers = 0;
+
+        const quizContents = {
+            "beranda-kuis": `
+                <h2 class="text-2xl font-bold text-cyan-700 mb-4">Selamat Datang di Kuis & Game Psikotes!</h2>
+                <p class="text-slate-600 mb-4">Pilih kategori tes dari menu di samping untuk memulai latihan interaktif. Setiap modul dirancang untuk membantu Anda memahami format soal dan mengasah kemampuan yang diujikan dalam psikotes PT YMMA.</p>
+                <p class="text-slate-600">Semangat berlatih dan semoga sukses!</p>
+            `,
+            "kuis-verbal": {
+                title: "Tes Kemampuan Verbal",
+                questions: [
+                    { type: "sinonim", question: "OKULIS sama artinya dengan...", options: ["Ahli Bedah", "Dokter Mata", "Spesialis THT", "Dokter Umum"], answer: "Dokter Mata", explanation: "Okulis adalah istilah lain untuk dokter mata." },
+                    { type: "antonim", question: "Lawan kata dari INFERNO adalah...", options: ["Neraka", "Dunia Bawah", "Surga", "Kegelapan"], answer: "Surga", explanation: "Inferno berarti neraka, sehingga lawan katanya adalah surga." },
+                    { type: "analogi", question: "SEPATU : KAKI = TOPI : ...", options: ["Kepala", "Rambut", "Tangan", "Leher"], answer: "Kepala", explanation: "Sepatu dikenakan di kaki, sebagaimana topi dikenakan di kepala." },
+                    { type: "sinonim", question: "MAKNA dari kata 'RESIDU' adalah...", options: ["Sisa", "Hasil", "Proses", "Awal"], answer: "Sisa", explanation: "Residu berarti sisa atau endapan." },
+                    { type: "antonim", question: "Lawan kata dari 'PROMINEN' adalah...", options: ["Terkenal", "Menonjol", "Biasa", "Unggul"], answer: "Biasa", explanation: "Prominen berarti menonjol atau terkemuka, lawan katanya adalah biasa atau tidak menonjol." }
+                ]
+            },
+            "kuis-numerik": {
+                title: "Tes Kemampuan Numerik",
+                questions: [
+                    { type: "aritmatika", question: "Hasil dari 24 × 0,625 adalah...", input: true, answer: "15" },
+                    { type: "deret", question: "Lanjutkan deret angka berikut: 19, 28, 37, 46, ...", input: true, answer: "55", explanation: "Pola deret ini adalah +9 (19+9=28, 28+9=37, dst.)." },
+                    { type: "aritmatika", question: "Jika 3x + 5 = 20, maka nilai x adalah...", input: true, answer: "5" },
+                    { type: "deret", question: "Pola selanjutnya dari: 2, 4, 8, 16, ...", input: true, answer: "32", explanation: "Setiap angka dikalikan 2 dari angka sebelumnya." }
+                ]
+            },
+             "kuis-logika": {
+                title: "Tes Penalaran Logis",
+                questions: [
+                    { question: "Semua musisi bisa membaca not balok. Budi adalah seorang musisi. Kesimpulannya adalah...", options: ["Budi mungkin bisa membaca not balok", "Budi pasti tidak bisa membaca not balok", "Budi pasti bisa membaca not balok", "Tidak dapat disimpulkan"], answer: "Budi pasti bisa membaca not balok", explanation: "Ini adalah contoh silogisme. Jika semua anggota kelompok A memiliki sifat B, dan X adalah anggota A, maka X pasti memiliki sifat B." },
+                    { question: "Jika hari ini hujan, maka jalanan basah. Hari ini jalanan basah. Maka...", options: ["Hari ini pasti hujan", "Hari ini mungkin hujan", "Hari ini pasti tidak hujan", "Tidak dapat disimpulkan dengan pasti bahwa hari ini hujan"], answer: "Tidak dapat disimpulkan dengan pasti bahwa hari ini hujan", explanation: "Jalanan basah bisa disebabkan oleh hal lain selain hujan (misalnya disiram). Ini adalah contoh kekeliruan 'affirming the consequent'."}
+                ]
+            },
+            "kuis-spasial": {
+                title: "Tes Kemampuan Spasial",
+                questions: [
+                    { 
+                        type: "hitung-kubus", 
+                        question: "Perhatikan tumpukan kubus berikut. Ada berapa total kubus satuan pada tumpukan ini?",
+                        visual: `<div class="mx-auto my-4 grid grid-cols-3 gap-0 w-24 border border-slate-300 p-1 bg-slate-100">
+                                    <div class="w-8 h-8 bg-cyan-200 border border-cyan-400"></div><div class="w-8 h-8 bg-cyan-200 border border-cyan-400"></div><div class="opacity-0"></div>
+                                    <div class="w-8 h-8 bg-cyan-200 border border-cyan-400"></div><div class="w-8 h-8 bg-cyan-200 border border-cyan-400"></div><div class="w-8 h-8 bg-cyan-200 border border-cyan-400"></div>
+                                    <div class="w-8 h-8 bg-cyan-200 border border-cyan-400"></div><div class="w-8 h-8 bg-cyan-200 border border-cyan-400"></div><div class="w-8 h-8 bg-cyan-200 border border-cyan-400"></div>
+                                 </div>`,
+                        options: ["7", "8", "9", "10"], 
+                        answer: "8",
+                        explanation: "Lapisan bawah: 3 kubus. Lapisan tengah: 3 kubus. Lapisan atas: 2 kubus. Total = 3+3+2 = 8 kubus."
+                    },
+                    {
+                        type: "pola-visual",
+                        question: "Manakah bentuk selanjutnya dalam pola ini: ● ○ ● ○ ...?",
+                        options: ["●", "○", "●●", "○○"],
+                        answer: "●",
+                        explanation: "Pola ini adalah selang-seling antara lingkaran hitam dan lingkaran putih."
+                    }
+                ]
+            },
+            "game-ketahanan": {
+                title: "Game Ketahanan Kerja (Simulasi Kraepelin)",
+                instructions: "Jumlahkan dua angka yang muncul secepat dan setepat mungkin. Tekan Enter setelah memasukkan jawaban. Game berlangsung selama 30 detik.",
+                content: `
+                    <div class="text-center">
+                        <div id="kraepelin-problem" class="text-4xl font-bold my-6 p-4 bg-slate-100 rounded-md">-- + --</div>
+                        <input type="number" id="kraepelin-answer" class="border-2 border-slate-300 p-3 rounded-md text-2xl w-1/2 text-center focus:border-cyan-500 focus:ring-cyan-500" placeholder="Jawaban">
+                        <p id="kraepelin-timer" class="text-xl mt-4">Sisa Waktu: 30 detik</p>
+                        <button id="start-kraepelin" class="mt-4 bg-cyan-600 text-white px-6 py-3 rounded-md hover:bg-cyan-700 text-lg">Mulai Game</button>
+                        <div id="kraepelin-results" class="mt-6 hidden">
+                            <h3 class="text-xl font-semibold">Hasil Game:</h3>
+                            <p>Total Jawaban: <span id="total-answered">0</span></p>
+                            <p>Jawaban Benar: <span id="correct-answered">0</span></p>
+                            <p>Akurasi: <span id="accuracy-percent">0</span>%</p>
+                            <div class="chart-container-kraepelin mt-4">
+                                <canvas id="kraepelinPerformanceChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                `
+            },
+            "interaktif-menggambar": {
+                title: "Panduan Interaktif Tes Menggambar",
+                content: `
+                    <p class="text-slate-600 mb-6">Tes menggambar (Wartegg, Pohon, Orang) bertujuan mengungkap aspek kepribadian. Tidak ada jawaban 'benar' atau 'salah', namun ada beberapa panduan umum.</p>
+                    
+                    <h3 class="text-xl font-semibold text-cyan-700 mb-3">Tes Wartegg: Melengkapi 8 Kotak</h3>
+                    <p class="text-sm text-slate-500 mb-4">Klik pada setiap kotak stimulus untuk melihat tips atau interpretasi umum.</p>
+                    <div class="grid grid-cols-4 gap-2 mx-auto max-w-sm mb-6" id="wartegg-grid">
+                        <div class="wartegg-box" data-stimulus="1"><div class="stimulus-dot"></div></div>
+                        <div class="wartegg-box" data-stimulus="2"><span class="stimulus-wave">~</span></div>
+                        <div class="wartegg-box" data-stimulus="3"><div class="stimulus-lines"><div></div><div></div><div></div></div></div>
+                        <div class="wartegg-box" data-stimulus="4"><div class="stimulus-black-box"></div></div>
+                        <div class="wartegg-box" data-stimulus="5"><div class="stimulus-t">T</div></div>
+                        <div class="wartegg-box" data-stimulus="6"><div class="stimulus-crosshairs"></div></div>
+                        <div class="wartegg-box" data-stimulus="7"><div class="stimulus-dots-arc"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span></div></div>
+                        <div class="wartegg-box" data-stimulus="8"><div class="stimulus-arc"></div></div>
+                    </div>
+                    <div id="wartegg-info" class="p-4 bg-amber-50 border-l-4 border-amber-400 rounded-r-lg min-h-[50px]"></div>
+
+                    <h3 class="text-xl font-semibold text-cyan-700 mt-8 mb-3">Tes Menggambar Pohon (Baum Test)</h3>
+                    <ul class="list-disc list-inside text-slate-600 space-y-1">
+                        <li>Gambar pohon yang lengkap: akar, batang, cabang, daun (buah jika relevan).</li>
+                        <li>Hindari pohon pisang, kelapa, atau bambu kecuali diinstruksikan khusus.</li>
+                        <li>Usahakan gambar proporsional dan berada di tengah kertas.</li>
+                    </ul>
+
+                    <h3 class="text-xl font-semibold text-cyan-700 mt-8 mb-3">Tes Menggambar Orang (Draw-A-Person)</h3>
+                    <ul class="list-disc list-inside text-slate-600 space-y-1">
+                        <li>Gambar orang secara utuh dari kepala hingga kaki.</li>
+                        <li>Sertakan detail wajar (mata, hidung, mulut, tangan, jari, pakaian).</li>
+                        <li>Gambarkan orang tersebut sedang melakukan aktivitas atau memiliki profesi.</li>
+                    </ul>
+                `
+            }
+        };
+        
+        const warteggStimulusInfo = {
+            "1": "Stimulus titik di tengah. Umumnya diasosiasikan dengan diri, pusat perhatian. Baik digambar sebagai makhluk hidup atau objek yang berkembang.",
+            "2": "Stimulus gelombang/garis melengkung. Melambangkan perasaan, kelembutan, gerakan. Sering digambar sebagai makhluk hidup atau objek alam.",
+            "3": "Stimulus tiga garis vertikal meningkat. Menunjukkan ambisi, pertumbuhan, ketegasan. Sering dikembangkan menjadi objek teknis atau bangunan.",
+            "4": "Stimulus kotak hitam kecil di pojok. Melambangkan beban, kesulitan, atau hal konkret. Bisa digambar sebagai objek berat atau konstruksi.",
+            "5": "Stimulus dua garis tegak lurus (seperti T miring). Menggambarkan konflik, tantangan, atau energi dinamis. Sering digambar sebagai objek bergerak atau alat.",
+            "6": "Stimulus dua garis terpisah (horizontal dan vertikal). Melambangkan integrasi, sintesis, atau hubungan. Sering digambar sebagai objek simetris atau gabungan.",
+            "7": "Stimulus titik-titik melengkung. Menunjukkan kehalusan, sensitivitas, atau detail. Sering digambar sebagai perhiasan, bunga, atau objek kecil.",
+            "8": "Stimulus lengkungan besar. Melambangkan perlindungan, kebesaran, atau cakrawala. Sering digambar sebagai payung, gunung, atau atap."
+        };
+
+        function loadContent(targetId) {
+            const contentData = quizContents[targetId];
+            if (!contentData) {
+                contentArea.innerHTML = `<p>Konten belum tersedia.</p>`;
+                return;
+            }
+
+            if (typeof contentData === 'string') {
+                contentArea.innerHTML = contentData;
+            } else if (targetId.startsWith('kuis-')) {
+                currentQuizData = contentData;
+                currentQuestionIndex = 0;
+                score = 0;
+                displayQuestion();
+            } else if (targetId === 'game-ketahanan') {
+                contentArea.innerHTML = `
+                    <h2 class="text-2xl font-bold text-cyan-700 mb-4">${contentData.title}</h2>
+                    <p class="text-slate-600 mb-4">${contentData.instructions}</p>
+                    ${contentData.content}
+                `;
+                document.getElementById('start-kraepelin').addEventListener('click', startKraepelinGame);
+                document.getElementById('kraepelin-answer').addEventListener('keypress', function(e) {
+                    if (e.key === 'Enter' && kraepelinGameInterval) {
+                        checkKraepelinAnswer();
+                    }
+                });
+            } else if (targetId === 'interaktif-menggambar') {
+                 contentArea.innerHTML = `
+                    <h2 class="text-2xl font-bold text-cyan-700 mb-4">${contentData.title}</h2>
+                    ${contentData.content}
+                `;
+                document.querySelectorAll('.wartegg-box').forEach(box => {
+                    box.addEventListener('click', () => {
+                        const stimulus = box.dataset.stimulus;
+                        document.getElementById('wartegg-info').textContent = warteggStimulusInfo[stimulus] || "Info tidak tersedia.";
+                    });
+                });
+                 document.getElementById('wartegg-info').textContent = "Klik salah satu kotak stimulus di atas untuk melihat info.";
+            }
+        }
+
+        function displayQuestion() {
+            if (!currentQuizData || currentQuestionIndex >= currentQuizData.questions.length) {
+                showResults();
+                return;
+            }
+            const q = currentQuizData.questions[currentQuestionIndex];
+            let optionsHtml = '';
+            if (q.options) {
+                q.options.forEach(opt => {
+                    optionsHtml += `<button class="quiz-option block w-full text-left p-3 my-2 border border-slate-300 rounded-md hover:bg-cyan-50">${opt}</button>`;
+                });
+            }
+
+            contentArea.innerHTML = `
+                <h2 class="text-2xl font-bold text-cyan-700 mb-4">${currentQuizData.title} (${currentQuestionIndex + 1}/${currentQuizData.questions.length})</h2>
+                <p class="text-lg text-slate-700 mb-1">${q.question}</p>
+                ${q.visual ? `<div class="mb-4">${q.visual}</div>` : ''}
+                ${q.input ? `<input type="text" id="answer-input" class="border-2 border-slate-300 p-2 rounded-md w-full my-2 focus:border-cyan-500 focus:ring-cyan-500" placeholder="Masukkan jawaban Anda">` : optionsHtml}
+                <button id="submit-answer" class="mt-4 bg-cyan-600 text-white px-6 py-2 rounded-md hover:bg-cyan-700">${q.input ? "Cek Jawaban" : "Pilih Jawaban"}</button>
+                <div id="feedback" class="mt-3"></div>
+            `;
+
+            if (q.options) {
+                document.querySelectorAll('.quiz-option').forEach(btn => {
+                    btn.onclick = (e) => handleAnswer(e.target.textContent);
+                });
+                document.getElementById('submit-answer').style.display = 'none';
+            } else if (q.input) {
+                document.getElementById('submit-answer').onclick = () => {
+                    const userAnswer = document.getElementById('answer-input').value.trim();
+                    handleAnswer(userAnswer);
+                };
+                 document.getElementById('answer-input').addEventListener('keypress', function(e) {
+                    if (e.key === 'Enter') {
+                        const userAnswer = document.getElementById('answer-input').value.trim();
+                        handleAnswer(userAnswer);
+                    }
+                });
+            }
+        }
+
+        function handleAnswer(userAnswer) {
+            const q = currentQuizData.questions[currentQuestionIndex];
+            const feedbackEl = document.getElementById('feedback');
+            let isCorrect = false;
+
+            if (typeof q.answer === 'string') {
+                isCorrect = userAnswer.toLowerCase() === q.answer.toLowerCase();
+            } else { // For multiple choice with specific answer property
+                isCorrect = userAnswer.toLowerCase() === q.answer.toLowerCase();
+            }
+            
+            if (isCorrect) {
+                score++;
+                feedbackEl.innerHTML = `<p class="feedback-correct">Benar!</p>`;
+            } else {
+                feedbackEl.innerHTML = `<p class="feedback-incorrect">Salah. Jawaban yang benar: ${q.answer}</p>`;
+            }
+            if (q.explanation) {
+                feedbackEl.innerHTML += `<p class="text-sm text-slate-500 mt-1">${q.explanation}</p>`;
+            }
+
+            currentQuestionIndex++;
+            setTimeout(displayQuestion, 2000);
+        }
+
+        function showResults() {
+            contentArea.innerHTML = `
+                <h2 class="text-2xl font-bold text-cyan-700 mb-4">Hasil Kuis: ${currentQuizData.title}</h2>
+                <p class="text-lg">Anda menjawab ${score} dari ${currentQuizData.questions.length} soal dengan benar.</p>
+                <p class="text-lg">Skor Anda: ${((score / currentQuizData.questions.length) * 100).toFixed(0)}%</p>
+                <button id="restart-quiz" class="mt-6 bg-cyan-600 text-white px-6 py-2 rounded-md hover:bg-cyan-700">Ulangi Kuis</button>
+            `;
+            document.getElementById('restart-quiz').onclick = () => {
+                currentQuestionIndex = 0;
+                score = 0;
+                displayQuestion();
+            };
+        }
+
+        function generateKraepelinProblem() {
+            const num1 = Math.floor(Math.random() * 9) + 1; // 1-9
+            const num2 = Math.floor(Math.random() * 9) + 1;
+            document.getElementById('kraepelin-problem').textContent = `${num1} + ${num2}`;
+            return num1 + num2;
+        }
+        
+        let currentKraepelinAnswer;
+
+        function startKraepelinGame() {
+            kraepelinTimeLeft = 30;
+            kraepelinCorrectAnswers = 0;
+            kraepelinTotalAnswers = 0;
+            document.getElementById('kraepelin-results').classList.add('hidden');
+            document.getElementById('start-kraepelin').disabled = true;
+            document.getElementById('kraepelin-answer').disabled = false;
+            document.getElementById('kraepelin-answer').value = '';
+            document.getElementById('kraepelin-answer').focus();
+
+            currentKraepelinAnswer = generateKraepelinProblem();
+            
+            document.getElementById('kraepelin-timer').textContent = `Sisa Waktu: ${kraepelinTimeLeft} detik`;
+
+            kraepelinGameInterval = setInterval(() => {
+                kraepelinTimeLeft--;
+                document.getElementById('kraepelin-timer').textContent = `Sisa Waktu: ${kraepelinTimeLeft} detik`;
+                if (kraepelinTimeLeft <= 0) {
+                    endKraepelinGame();
+                }
+            }, 1000);
+        }
+
+        function checkKraepelinAnswer() {
+            const userAnswer = parseInt(document.getElementById('kraepelin-answer').value);
+            if (!isNaN(userAnswer)) {
+                kraepelinTotalAnswers++;
+                if (userAnswer === currentKraepelinAnswer) {
+                    kraepelinCorrectAnswers++;
+                }
+                currentKraepelinAnswer = generateKraepelinProblem();
+                document.getElementById('kraepelin-answer').value = '';
+                document.getElementById('kraepelin-answer').focus();
+            }
+        }
+
+        function endKraepelinGame() {
+            clearInterval(kraepelinGameInterval);
+            kraepelinGameInterval = null;
+            document.getElementById('start-kraepelin').disabled = false;
+            document.getElementById('kraepelin-answer').disabled = true;
+            document.getElementById('kraepelin-problem').textContent = "Waktu Habis!";
+            
+            document.getElementById('total-answered').textContent = kraepelinTotalAnswers;
+            document.getElementById('correct-answered').textContent = kraepelinCorrectAnswers;
+            const accuracy = kraepelinTotalAnswers > 0 ? ((kraepelinCorrectAnswers / kraepelinTotalAnswers) * 100).toFixed(0) : 0;
+            document.getElementById('accuracy-percent').textContent = accuracy;
+            document.getElementById('kraepelin-results').classList.remove('hidden');
+            
+            renderKraepelinChart(kraepelinTotalAnswers, kraepelinCorrectAnswers);
+        }
+        
+        let kraepelinChartInstance = null;
+        function renderKraepelinChart(total, correct) {
+            const ctx = document.getElementById('kraepelinPerformanceChart').getContext('2d');
+            const incorrect = total - correct;
+
+            if (kraepelinChartInstance) {
+                kraepelinChartInstance.destroy();
+            }
+
+            kraepelinChartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['Jawaban Benar', 'Jawaban Salah'],
+                    datasets: [{
+                        label: 'Jumlah Jawaban',
+                        data: [correct, incorrect],
+                        backgroundColor: [
+                            'rgba(75, 192, 192, 0.6)', // Greenish
+                            'rgba(255, 99, 132, 0.6)'  // Reddish
+                        ],
+                        borderColor: [
+                            'rgba(75, 192, 192, 1)',
+                            'rgba(255, 99, 132, 1)'
+                        ],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                stepSize: 1
+                            }
+                        }
+                    },
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'Ringkasan Performa Game Ketahanan'
+                        }
+                    }
+                }
+            });
+        }
+
+
+        navButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                navButtons.forEach(btn => btn.classList.remove('active'));
+                button.classList.add('active');
+                const targetId = button.dataset.target;
+                loadContent(targetId);
+            });
+        });
+
+        loadContent('beranda-kuis');
+    </script>
+</body>
+</html>
